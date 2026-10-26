@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: pglife-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: pglife
+      - key: DB_PORT
+        value: "3306"
