@@ -1,3 +1,5 @@
+var backend_url = "https://pglife-2.onrender.com";
+
 window.addEventListener("load", function () {
     var is_interested_images = document.getElementsByClassName("is-interested-image");
     Array.from(is_interested_images).forEach(element => {
@@ -11,38 +13,48 @@ window.addEventListener("load", function () {
             // On error
             XHR.addEventListener("error", on_error);
 
-            // Set up request
-            XHR.open("GET", "api/toggle_interested.php?property_id=" + property_id);
+            // Set up request to Render backend
+            XHR.open("GET", backend_url + "/api/toggle_interested.php?property_id=" + property_id);
 
             // Initiate the request
             XHR.send();
 
-            document.getElementById("loading").style.display = 'block';
+            var loader = document.getElementById("loading");
+            if (loader) loader.style.display = 'block';
             event.preventDefault();
         });
     });
 });
 
 var toggle_interested_success = function (event) {
-    document.getElementById("loading").style.display = 'none';
+    var loader = document.getElementById("loading");
+    if (loader) loader.style.display = 'none';
 
-    var response = JSON.parse(event.target.responseText);
-    if (response.success) {
-        var property_id = response.property_id;
+    try {
+        var response = JSON.parse(event.target.responseText);
+        if (response.success) {
+            var property_id = response.property_id;
 
-        var is_interested_image = document.querySelectorAll(".property-id-" + property_id + " .is-interested-image")[0];
-        var interested_user_count = document.querySelectorAll(".property-id-" + property_id + " .interested-user-count")[0];
+            var is_interested_image = document.querySelectorAll(".property-id-" + property_id + " .is-interested-image")[0];
+            var interested_user_count = document.querySelectorAll(".property-id-" + property_id + " .interested-user-count")[0];
 
-        if (response.is_interested) {
-            is_interested_image.classList.add("fas");
-            is_interested_image.classList.remove("far");
-            interested_user_count.innerHTML = parseFloat(interested_user_count.innerHTML) + 1;
-        } else {
-            is_interested_image.classList.add("far");
-            is_interested_image.classList.remove("fas");
-            interested_user_count.innerHTML = parseFloat(interested_user_count.innerHTML) - 1;
+            if (response.is_interested) {
+                is_interested_image.classList.add("fas");
+                is_interested_image.classList.remove("far");
+                interested_user_count.innerHTML = parseFloat(interested_user_count.innerHTML) + 1;
+            } else {
+                is_interested_image.classList.add("far");
+                is_interested_image.classList.remove("fas");
+                interested_user_count.innerHTML = parseFloat(interested_user_count.innerHTML) - 1;
+            }
+        } else if (!response.success && !response.is_logged_in) {
+            if (window.$ && window.$("#login-modal").length) {
+                window.$("#login-modal").modal("show");
+            } else {
+                alert("Please log in first.");
+            }
         }
-    } else if (!response.success && !response.is_logged_in) {
-        window.$("#login-modal").modal("show");
+    } catch (e) {
+        console.error(e);
     }
 };

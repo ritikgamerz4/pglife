@@ -41,5 +41,5 @@ Host your MySQL database for free on **Aiven**, **Clever Cloud**, or **Railway**
    - **Framework Preset**: `Create React App`
    - **Root Directory**: `frontend`
 4. Under **Environment Variables**, add:
-   - `REACT_APP_API_BASE_URL`: `https://your-backend-name.onrender.com` *(from step 2)*
+   - `REACT_APP_API_BASE_URL`: `https://pglife-2.onrender.com`
 5. Click **Deploy**.
