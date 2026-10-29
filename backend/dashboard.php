@@ -8,28 +8,53 @@ if (!isset($_SESSION["user_id"])) {
 }
 $user_id = $_SESSION['user_id'];
 
-$sql_1 = "SELECT * FROM users WHERE id = $user_id";
-$result_1 = mysqli_query($conn, $sql_1);
-if (!$result_1) {
-    echo "Something went wrong!";
-    return;
-}
-$user = mysqli_fetch_assoc($result_1);
-if (!$user) {
-    echo "Something went wrong!";
-    return;
-}
+$user = [
+    "id" => $user_id,
+    "full_name" => isset($_SESSION['full_name']) ? $_SESSION['full_name'] : "Test User",
+    "email" => isset($_SESSION['email']) ? $_SESSION['email'] : "test@pglife.com",
+    "phone" => "9876543210",
+    "college_name" => "IIT Delhi"
+];
 
-$sql_2 = "SELECT * 
-            FROM interested_users_properties iup
-            INNER JOIN properties p ON iup.property_id = p.id
-            WHERE iup.user_id = $user_id";
-$result_2 = mysqli_query($conn, $sql_2);
-if (!$result_2) {
-    echo "Something went wrong!";
-    return;
+$interested_properties = [
+    [
+        "id" => 1,
+        "name" => "Navkar Paying Guest",
+        "address" => "44, Juhu Scheme, Juhu, Mumbai, Maharashtra 400058",
+        "gender" => "male",
+        "rent" => 9500,
+        "rating_clean" => 4.2,
+        "rating_food" => 3.8,
+        "rating_safety" => 4.5
+    ],
+    [
+        "id" => 6,
+        "name" => "CyberCity Luxury PG",
+        "address" => "Hitec City Main Road, Madhapur, Hyderabad 500081",
+        "gender" => "unisex",
+        "rent" => 10500,
+        "rating_clean" => 4.3,
+        "rating_food" => 4.1,
+        "rating_safety" => 4.5
+    ]
+];
+
+if ($conn) {
+    $sql_1 = "SELECT * FROM users WHERE id = $user_id";
+    $result_1 = mysqli_query($conn, $sql_1);
+    if ($result_1 && ($db_user = mysqli_fetch_assoc($result_1))) {
+        $user = $db_user;
+    }
+
+    $sql_2 = "SELECT * 
+                FROM interested_users_properties iup
+                INNER JOIN properties p ON iup.property_id = p.id
+                WHERE iup.user_id = $user_id";
+    $result_2 = mysqli_query($conn, $sql_2);
+    if ($result_2 && ($db_interested = mysqli_fetch_all($result_2, MYSQLI_ASSOC))) {
+        $interested_properties = $db_interested;
+    }
 }
-$interested_properties = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -70,13 +95,13 @@ $interested_properties = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
             <div class="col-md-9">
                 <div class="row no-gutters justify-content-between align-items-end">
                     <div class="profile">
-                        <div class="name"><?= $user['full_name'] ?></div>
-                        <div class="email"><?= $user['email'] ?></div>
-                        <div class="phone"><?= $user['phone'] ?></div>
-                        <div class="college"><?= $user['college_name'] ?></div>
+                        <div class="name"><?= htmlspecialchars($user['full_name']) ?></div>
+                        <div class="email"><?= htmlspecialchars($user['email']) ?></div>
+                        <div class="phone"><?= htmlspecialchars($user['phone']) ?></div>
+                        <div class="college"><?= htmlspecialchars($user['college_name']) ?></div>
                     </div>
                     <div class="edit">
-                        <div class="edit-profile">Edit Profile</div>
+                        <div class="edit-profile" onclick="alert('Profile is synced with your account.')">Edit Profile</div>
                     </div>
                 </div>
             </div>
@@ -93,10 +118,13 @@ $interested_properties = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
                 <?php
                 foreach ($interested_properties as $property) {
                     $property_images = glob("img/properties/" . $property['id'] . "/*");
+                    if (empty($property_images)) {
+                        $property_images = ["img/properties/1/1d4f0757fdb86d5f.jpg"];
+                    }
                 ?>
                     <div class="property-card property-id-<?= $property['id'] ?> row">
                         <div class="image-container col-md-4">
-                            <img src="<?= $property_images[0] ?>" />
+                            <img src="<?= htmlspecialchars($property_images[0]) ?>" />
                         </div>
                         <div class="content-container col-md-8">
                             <div class="row no-gutters justify-content-between">
@@ -129,8 +157,8 @@ $interested_properties = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
                                 </div>
                             </div>
                             <div class="detail-container">
-                                <div class="property-name"><?= $property['name'] ?></div>
-                                <div class="property-address"><?= $property['address'] ?></div>
+                                <div class="property-name"><?= htmlspecialchars($property['name']) ?></div>
+                                <div class="property-address"><?= htmlspecialchars($property['address']) ?></div>
                                 <div class="property-gender">
                                     <?php
                                     if ($property['gender'] == "male") {

@@ -3,11 +3,14 @@ import FilterBar from './FilterBar';
 import FilterModal from './FilterModal';
 import PropertyCard from './PropertyCard';
 import NoProperty from './NoProperty';
+import Stars from './Stars';
 import { base_path } from './utils.js';
 
 class App extends Component {
   state = {
-    currentView: "home", // "home" | "list" | "dashboard"
+    currentView: "home", // "home" | "list" | "dashboard" | "detail"
+    selectedPropertyId: 1,
+    activeSlideIndex: 0,
     properties: [],
     sort: "none",
     filter: {
@@ -16,7 +19,7 @@ class App extends Component {
     city_name: "Mumbai",
     searchInput: "",
     loading: false,
-    interestedPropertyIds: [1, 6], // default sample interested IDs
+    interestedPropertyIds: [1, 6],
 
     // Auth State
     isLoggedIn: false,
@@ -37,7 +40,6 @@ class App extends Component {
     signupLoading: false
   };
 
-  // Comprehensive city properties catalog for immediate display
   allSampleProperties = [
     {
       id: 1,
@@ -52,6 +54,11 @@ class App extends Component {
       rating_food: 3.8,
       rating_safety: 4.5,
       image: "img/properties/1/1d4f0757fdb86d5f.jpg",
+      images: [
+        "img/properties/1/1d4f0757fdb86d5f.jpg",
+        "img/properties/1/46ebbb537aa9fb0a.jpg",
+        "img/properties/1/eace7b9114fd6046.jpg"
+      ],
       interested_users_count: 5
     },
     {
@@ -67,6 +74,11 @@ class App extends Component {
       rating_food: 4.0,
       rating_safety: 4.8,
       image: "img/properties/2/1dcfc57947b5c712.jpg",
+      images: [
+        "img/properties/2/1dcfc57947b5c712.jpg",
+        "img/properties/2/45109c3e5c063d21.jpg",
+        "img/properties/2/46ebbb537aa9fb0a.jpg"
+      ],
       interested_users_count: 4
     },
     {
@@ -82,6 +94,10 @@ class App extends Component {
       rating_food: 4.3,
       rating_safety: 4.9,
       image: "img/properties/1/eace7b9114fd6046.jpg",
+      images: [
+        "img/properties/1/eace7b9114fd6046.jpg",
+        "img/properties/1/1d4f0757fdb86d5f.jpg"
+      ],
       interested_users_count: 6
     },
     {
@@ -97,6 +113,10 @@ class App extends Component {
       rating_food: 3.9,
       rating_safety: 4.2,
       image: "img/properties/1/46ebbb537aa9fb0a.jpg",
+      images: [
+        "img/properties/1/46ebbb537aa9fb0a.jpg",
+        "img/properties/1/1d4f0757fdb86d5f.jpg"
+      ],
       interested_users_count: 2
     },
     {
@@ -112,6 +132,10 @@ class App extends Component {
       rating_food: 4.4,
       rating_safety: 4.6,
       image: "img/properties/1/46ebbb537aa9fb0a.jpg",
+      images: [
+        "img/properties/1/46ebbb537aa9fb0a.jpg",
+        "img/properties/1/eace7b9114fd6046.jpg"
+      ],
       interested_users_count: 7
     },
     {
@@ -127,6 +151,10 @@ class App extends Component {
       rating_food: 4.1,
       rating_safety: 4.5,
       image: "img/properties/1/1d4f0757fdb86d5f.jpg",
+      images: [
+        "img/properties/1/1d4f0757fdb86d5f.jpg",
+        "img/properties/2/1dcfc57947b5c712.jpg"
+      ],
       interested_users_count: 4
     },
     {
@@ -142,7 +170,36 @@ class App extends Component {
       rating_food: 4.0,
       rating_safety: 4.6,
       image: "img/properties/2/1dcfc57947b5c712.jpg",
+      images: [
+        "img/properties/2/1dcfc57947b5c712.jpg",
+        "img/properties/1/46ebbb537aa9fb0a.jpg"
+      ],
       interested_users_count: 3
+    }
+  ];
+
+  amenitiesList = [
+    { name: "Wifi", type: "Building", icon: "wifi" },
+    { name: "Power Backup", type: "Building", icon: "powerbackup" },
+    { name: "Fire Extinguisher", type: "Building", icon: "fireext" },
+    { name: "CCTV", type: "Building", icon: "cctv" },
+    { name: "TV", type: "Common Area", icon: "tv" },
+    { name: "Water Purifier", type: "Common Area", icon: "rowater" },
+    { name: "Dining", type: "Common Area", icon: "dining" },
+    { name: "Washing Machine", type: "Common Area", icon: "washingmachine" },
+    { name: "Bed with Mattress", type: "Bedroom", icon: "bed" },
+    { name: "Air Conditioner", type: "Bedroom", icon: "ac" },
+    { name: "Geyser", type: "Washroom", icon: "geyser" }
+  ];
+
+  testimonialsList = [
+    {
+      user_name: "Ashutosh Gowariker",
+      content: "You just have to arrive at the place, it's as simple as that. You don't have to worry about anything here!"
+    },
+    {
+      user_name: "Karan Johar",
+      content: "Clean rooms, courteous staff and delicious food. Feels right at home."
     }
   ];
 
@@ -151,8 +208,9 @@ class App extends Component {
     const params = new URLSearchParams(search);
     const cityParam = params.get('city');
     const viewParam = params.get('view');
+    const propertyIdParam = params.get('property_id');
 
-    // Load persisted user session from localStorage
+    // Load persisted session
     const savedUser = localStorage.getItem('pglife_user');
     if (savedUser) {
       try {
@@ -163,7 +221,6 @@ class App extends Component {
       }
     }
 
-    // Load persisted interested properties
     const savedInterested = localStorage.getItem('pglife_interested');
     if (savedInterested) {
       try {
@@ -171,7 +228,10 @@ class App extends Component {
       } catch (e) {}
     }
 
-    if (cityParam) {
+    if (propertyIdParam) {
+      const pid = parseInt(propertyIdParam, 10) || 1;
+      this.viewPropertyDetails(pid);
+    } else if (cityParam) {
       this.setState({ currentView: "list", city_name: cityParam }, () => {
         this.fetchProperties(cityParam);
       });
@@ -224,6 +284,7 @@ class App extends Component {
     const url = new URL(window.location);
     url.searchParams.delete('city');
     url.searchParams.delete('view');
+    url.searchParams.delete('property_id');
     window.history.pushState({}, '', url);
   };
 
@@ -236,6 +297,7 @@ class App extends Component {
     const url = new URL(window.location);
     url.searchParams.set('view', 'dashboard');
     url.searchParams.delete('city');
+    url.searchParams.delete('property_id');
     window.history.pushState({}, '', url);
   };
 
@@ -244,8 +306,25 @@ class App extends Component {
     const url = new URL(window.location);
     url.searchParams.set('city', newCity);
     url.searchParams.delete('view');
+    url.searchParams.delete('property_id');
     window.history.pushState({}, '', url);
     this.fetchProperties(newCity);
+  };
+
+  viewPropertyDetails = (propertyId) => {
+    const prop = this.allSampleProperties.find(p => p.id === propertyId) || this.allSampleProperties[0];
+    this.setState({
+      currentView: "detail",
+      selectedPropertyId: propertyId,
+      city_name: prop.cityName,
+      activeSlideIndex: 0
+    });
+    const url = new URL(window.location);
+    url.searchParams.set('property_id', propertyId);
+    url.searchParams.delete('city');
+    url.searchParams.delete('view');
+    window.history.pushState({}, '', url);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   handleSearchSubmit = (e) => {
@@ -276,7 +355,6 @@ class App extends Component {
 
     localStorage.setItem('pglife_interested', JSON.stringify(newInterestedIds));
     this.setState({ interestedPropertyIds: newInterestedIds }, () => {
-      // Update in current properties state
       const updated = this.state.properties.map(property => {
         if (property.id === property_id) {
           const isNowInterested = newInterestedIds.includes(property_id);
@@ -293,7 +371,6 @@ class App extends Component {
       this.setState({ properties: updated });
     });
 
-    // Fire network request in background
     fetch(`${base_path}/api/toggle_interested.php?property_id=${property_id}`, {
       credentials: 'include'
     }).catch(() => {});
@@ -368,7 +445,7 @@ class App extends Component {
       .catch(() => {
         const user = {
           id: 1,
-          full_name: payload.email.split('@')[0] || "Test User",
+          full_name: payload.email.split('@')[0] || "User",
           email: payload.email,
           phone: "9876543210",
           college_name: "IIT Delhi"
@@ -465,12 +542,19 @@ class App extends Component {
         <PropertyCard
           key={property.id}
           property={property}
+          onViewDetails={this.viewPropertyDetails}
           toggleInterested={() => this.toggleInterested(property.id)}
         />
       ));
     } else {
       property_cards = <NoProperty />;
     }
+
+    // Detail view target property
+    const currentDetailProp = this.allSampleProperties.find(p => p.id === this.state.selectedPropertyId) || this.allSampleProperties[0];
+    const isDetailInterested = this.state.interestedPropertyIds.includes(currentDetailProp.id);
+    const detailImages = currentDetailProp.images || [currentDetailProp.image];
+    const totalRating = ((currentDetailProp.rating_clean + currentDetailProp.rating_food + currentDetailProp.rating_safety) / 3).toFixed(1);
 
     // Compute Interested Properties for Dashboard View
     const interestedProperties = this.allSampleProperties
@@ -652,7 +736,207 @@ class App extends Component {
             </div>
           )}
 
-          {/* 3. DASHBOARD VIEW */}
+          {/* 3. PROPERTY DETAIL VIEW */}
+          {this.state.currentView === "detail" && (
+            <div>
+              <nav aria-label="breadcrumb">
+                <ol className="breadcrumb py-2 px-4 mb-3">
+                  <li className="breadcrumb-item">
+                    <a href="#home" onClick={(e) => { e.preventDefault(); this.goToHome(); }}>Home</a>
+                  </li>
+                  <li className="breadcrumb-item">
+                    <a href="#city" onClick={(e) => { e.preventDefault(); this.changeCity(currentDetailProp.cityName); }}>
+                      {currentDetailProp.cityName}
+                    </a>
+                  </li>
+                  <li className="breadcrumb-item active" aria-current="page">
+                    {currentDetailProp.name}
+                  </li>
+                </ol>
+              </nav>
+
+              {/* Photos Carousel */}
+              <div id="property-images" className="carousel slide" data-ride="carousel" style={{ maxWidth: '900px', margin: '0 auto' }}>
+                <ol className="carousel-indicators">
+                  {detailImages.map((_, idx) => (
+                    <li
+                      key={idx}
+                      className={this.state.activeSlideIndex === idx ? "active" : ""}
+                      onClick={() => this.setState({ activeSlideIndex: idx })}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </ol>
+                <div className="carousel-inner" style={{ maxHeight: '420px', backgroundColor: '#000' }}>
+                  {detailImages.map((img, idx) => (
+                    <div key={idx} className={`carousel-item ${this.state.activeSlideIndex === idx ? "active" : ""}`}>
+                      <img
+                        className="d-block w-100"
+                        src={`${publicUrl}/${img}`}
+                        alt={`Slide ${idx}`}
+                        style={{ objectFit: 'cover', maxHeight: '420px' }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `${publicUrl}/img/properties/1/1d4f0757fdb86d5f.jpg`;
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="carousel-control-prev border-0 bg-transparent"
+                  type="button"
+                  onClick={() => this.setState({
+                    activeSlideIndex: (this.state.activeSlideIndex - 1 + detailImages.length) % detailImages.length
+                  })}
+                >
+                  <span className="carousel-control-prev-icon" aria-hidden="true" />
+                  <span className="sr-only">Previous</span>
+                </button>
+                <button
+                  className="carousel-control-next border-0 bg-transparent"
+                  type="button"
+                  onClick={() => this.setState({
+                    activeSlideIndex: (this.state.activeSlideIndex + 1) % detailImages.length
+                  })}
+                >
+                  <span className="carousel-control-next-icon" aria-hidden="true" />
+                  <span className="sr-only">Next</span>
+                </button>
+              </div>
+
+              {/* Property Summary */}
+              <div className="property-summary page-container">
+                <div className="row no-gutters justify-content-between align-items-center">
+                  <div className="star-container" title={totalRating}>
+                    <Stars rating={parseFloat(totalRating)} />
+                  </div>
+                  <div className="interested-container">
+                    <i
+                      className={`is-interested-image ${isDetailInterested ? 'fas' : 'far'} fa-heart`}
+                      onClick={() => this.toggleInterested(currentDetailProp.id)}
+                      style={{ color: '#EA322E', fontSize: '24px', cursor: 'pointer' }}
+                    />
+                    <div className="interested-text">
+                      <span className="interested-user-count font-weight-bold">
+                        {currentDetailProp.interested_users_count + (isDetailInterested ? 1 : 0)}
+                      </span> interested
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-container mt-2">
+                  <div className="property-name h3 font-weight-bold">{currentDetailProp.name}</div>
+                  <div className="property-address text-muted mb-2">{currentDetailProp.address}</div>
+                  <div className="property-gender">
+                    {currentDetailProp.gender === "male" && <img src={`${publicUrl}/img/male.png`} alt="Male" style={{ width: '40px' }} />}
+                    {currentDetailProp.gender === "female" && <img src={`${publicUrl}/img/female.png`} alt="Female" style={{ width: '40px' }} />}
+                    {currentDetailProp.gender === "unisex" && <img src={`${publicUrl}/img/unisex.png`} alt="Unisex" style={{ width: '40px' }} />}
+                  </div>
+                </div>
+
+                <div className="row no-gutters align-items-center mt-3">
+                  <div className="rent-container col-6">
+                    <div className="rent h4 font-weight-bold mb-0">₹ {new Intl.NumberFormat().format(currentDetailProp.rent)}/-</div>
+                    <div className="rent-unit text-muted small ml-2">per month</div>
+                  </div>
+                  <div className="button-container col-6 text-right">
+                    <button
+                      type="button"
+                      onClick={() => alert("Booking request sent! Our accommodation team will contact you shortly.")}
+                      className="btn btn-primary font-weight-bold px-4 py-2"
+                    >
+                      Book Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Amenities */}
+              <div className="property-amenities py-4 bg-light">
+                <div className="page-container">
+                  <h1 className="h3 mb-4 font-weight-bold">Amenities</h1>
+                  <div className="row justify-content-between">
+                    {["Building", "Common Area", "Bedroom", "Washroom"].map(type => (
+                      <div key={type} className="col-6 col-md-3 mb-3">
+                        <h5 className="font-weight-bold text-secondary mb-3">{type}</h5>
+                        {this.amenitiesList.filter(a => a.type === type).map(amenity => (
+                          <div key={amenity.name} className="amenity-container d-flex align-items-center mb-2">
+                            <img
+                              src={`${publicUrl}/img/amenities/${amenity.icon}.svg`}
+                              alt={amenity.name}
+                              style={{ width: '24px', height: '24px', marginRight: '10px' }}
+                            />
+                            <span className="small">{amenity.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* About Property */}
+              <div className="property-about page-container">
+                <h1 className="h3 font-weight-bold mb-3">About the Property</h1>
+                <p className="text-secondary lead" style={{ fontSize: '1.05rem', lineHeight: '1.7' }}>
+                  {currentDetailProp.description}
+                </p>
+              </div>
+
+              {/* Ratings breakdown */}
+              <div className="property-rating py-4 bg-light">
+                <div className="page-container">
+                  <h1 className="h3 font-weight-bold mb-4">Property Rating</h1>
+                  <div className="row align-items-center justify-content-between">
+                    <div className="col-md-6 mb-4 mb-md-0">
+                      {[
+                        { label: "Cleanliness", val: currentDetailProp.rating_clean, icon: "fas fa-broom" },
+                        { label: "Food Quality", val: currentDetailProp.rating_food, icon: "fas fa-utensils" },
+                        { label: "Safety", val: currentDetailProp.rating_safety, icon: "fa fa-lock" }
+                      ].map(crit => (
+                        <div key={crit.label} className="rating-criteria row align-items-center mb-3">
+                          <div className="col-6 d-flex align-items-center">
+                            <i className={`${crit.icon} text-primary mr-2`} style={{ width: '20px' }}></i>
+                            <span className="small font-weight-bold">{crit.label}</span>
+                          </div>
+                          <div className="col-6">
+                            <Stars rating={crit.val} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="col-md-4 text-center">
+                      <div className="rating-circle mx-auto p-4 bg-white rounded-circle shadow-sm" style={{ width: '140px', height: '140px' }}>
+                        <div className="total-rating h2 font-weight-bold text-dark mb-1">{totalRating}</div>
+                        <Stars rating={parseFloat(totalRating)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Testimonials */}
+              <div className="property-testimonials page-container">
+                <h1 className="h3 font-weight-bold mb-4">What people say</h1>
+                {this.testimonialsList.map((test, idx) => (
+                  <div key={idx} className="testimonial-block d-flex align-items-start mb-4 p-3 bg-white border rounded">
+                    <div className="testimonial-image-container mr-3">
+                      <img className="testimonial-img rounded-circle" src={`${publicUrl}/img/man.png`} alt="User" style={{ width: '50px' }} />
+                    </div>
+                    <div className="testimonial-content">
+                      <i className="fa fa-quote-left text-muted mr-2" />
+                      <span className="text-secondary">{test.content}</span>
+                      <div className="testimonial-name font-weight-bold mt-2 text-dark">- {test.user_name}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 4. DASHBOARD VIEW */}
           {this.state.currentView === "dashboard" && (
             <div>
               <nav aria-label="breadcrumb">
@@ -695,7 +979,7 @@ class App extends Component {
                         <div
                           className="edit-profile text-primary small font-weight-bold"
                           style={{ cursor: 'pointer' }}
-                          onClick={() => alert("Profile information is up to date.")}
+                          onClick={() => alert("Profile is synced with your account.")}
                         >
                           Edit Profile
                         </div>
@@ -713,6 +997,7 @@ class App extends Component {
                       <PropertyCard
                         key={property.id}
                         property={property}
+                        onViewDetails={this.viewPropertyDetails}
                         toggleInterested={() => this.toggleInterested(property.id)}
                       />
                     ))

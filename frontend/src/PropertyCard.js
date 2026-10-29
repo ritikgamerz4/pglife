@@ -66,7 +66,19 @@ const PropertyCard = props => {
             <div className="rent-unit">per month</div>
           </div>
           <div className="button-container col-6">
-            <a href={detailLink} className="btn btn-primary">View</a>
+            <button
+              type="button"
+              onClick={() => {
+                if (props.onViewDetails) {
+                  props.onViewDetails(props.property.id);
+                } else {
+                  window.location.href = detailLink;
+                }
+              }}
+              className="btn btn-primary"
+            >
+              View
+            </button>
           </div>
         </div>
       </div>

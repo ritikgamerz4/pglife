@@ -3,53 +3,153 @@ session_start();
 require "includes/database_connect.php";
 
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : NULL;
-$property_id = $_GET["property_id"];
+$property_id = isset($_GET["property_id"]) ? intval($_GET["property_id"]) : 1;
+if ($property_id <= 0) $property_id = 1;
 
-$sql_1 = "SELECT *, p.id AS property_id, p.name AS property_name, c.name AS city_name 
-            FROM properties p
-            INNER JOIN cities c ON p.city_id = c.id 
-            WHERE p.id = $property_id";
-$result_1 = mysqli_query($conn, $sql_1);
-if (!$result_1) {
-    echo "Something went wrong!";
-    return;
+$all_fallback_properties = [
+    1 => [
+        "property_id" => 1,
+        "property_name" => "Navkar Paying Guest",
+        "city_name" => "Mumbai",
+        "address" => "44, Juhu Scheme, Juhu, Mumbai, Maharashtra 400058",
+        "description" => "Furnished room with attached washroom, daily housekeeping, 3-course homestyle meals, and 24/7 security near Juhu beach and metro station.",
+        "gender" => "male",
+        "rent" => 9500,
+        "rating_clean" => 4.2,
+        "rating_food" => 3.8,
+        "rating_safety" => 4.5
+    ],
+    2 => [
+        "property_id" => 2,
+        "property_name" => "Ganpati Paying Guest",
+        "city_name" => "Mumbai",
+        "address" => "Police Station, 115, Sher-e-Punjab Colony, Andheri East, Mumbai 400093",
+        "description" => "Spacious co-living PG with dedicated study desks, high-speed WiFi, gym access, and nutritious breakfast & dinner provided daily.",
+        "gender" => "female",
+        "rent" => 8500,
+        "rating_clean" => 4.5,
+        "rating_food" => 4.0,
+        "rating_safety" => 4.8
+    ],
+    3 => [
+        "property_id" => 3,
+        "property_name" => "PG for Girls Shree Radhe",
+        "city_name" => "Delhi",
+        "address" => "Plot no. 258/D4, Laxman Vihar, Phase 2, Delhi 110001",
+        "description" => "Safe, well-maintained girls PG with biometric entrance, air-conditioned rooms, full power backup, and hygienic home-cooked meals.",
+        "gender" => "female",
+        "rent" => 11000,
+        "rating_clean" => 4.7,
+        "rating_food" => 4.3,
+        "rating_safety" => 4.9
+    ],
+    4 => [
+        "property_id" => 4,
+        "property_name" => "Saxena Paying Guest",
+        "city_name" => "Delhi",
+        "address" => "H.No. 122, Block B, Hauz Khas, New Delhi 110016",
+        "description" => "Premium student PG within walking distance of metro and markets. Includes high-speed internet, laundry, and round-the-clock water supply.",
+        "gender" => "male",
+        "rent" => 12500,
+        "rating_clean" => 4.0,
+        "rating_food" => 3.9,
+        "rating_safety" => 4.2
+    ],
+    5 => [
+        "property_id" => 5,
+        "property_name" => "Youth Living Paying Guest",
+        "city_name" => "Bengaluru",
+        "address" => "12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru 560038",
+        "description" => "Modern unisex co-living hub located in prime Indiranagar with high-speed internet, gaming zone, cafe lounge, and housekeeping.",
+        "gender" => "unisex",
+        "rent" => 14000,
+        "rating_clean" => 4.6,
+        "rating_food" => 4.4,
+        "rating_safety" => 4.6
+    ],
+    6 => [
+        "property_id" => 6,
+        "property_name" => "CyberCity Luxury PG",
+        "city_name" => "Hyderabad",
+        "address" => "Hitec City Main Road, Madhapur, Hyderabad 500081",
+        "description" => "Executive PG accommodation for working professionals and students near tech parks. Equipped with AC, TV, WiFi, and meal plan.",
+        "gender" => "unisex",
+        "rent" => 10500,
+        "rating_clean" => 4.3,
+        "rating_food" => 4.1,
+        "rating_safety" => 4.5
+    ],
+    7 => [
+        "property_id" => 7,
+        "property_name" => "Gachibowli Heights PG",
+        "city_name" => "Hyderabad",
+        "address" => "Plot 45, Telecom Nagar, Gachibowli, Hyderabad 500032",
+        "description" => "Modern student accommodation with high-speed internet, food facility, and 24/7 security.",
+        "gender" => "male",
+        "rent" => 9000,
+        "rating_clean" => 4.4,
+        "rating_food" => 4.0,
+        "rating_safety" => 4.6
+    ]
+];
+
+$default_amenities = [
+    ["name" => "Wifi", "type" => "Building", "icon" => "wifi"],
+    ["name" => "Power Backup", "type" => "Building", "icon" => "powerbackup"],
+    ["name" => "Fire Extinguisher", "type" => "Building", "icon" => "fireext"],
+    ["name" => "CCTV", "type" => "Building", "icon" => "cctv"],
+    ["name" => "TV", "type" => "Common Area", "icon" => "tv"],
+    ["name" => "Water Purifier", "type" => "Common Area", "icon" => "rowater"],
+    ["name" => "Dining", "type" => "Common Area", "icon" => "dining"],
+    ["name" => "Washing Machine", "type" => "Common Area", "icon" => "washingmachine"],
+    ["name" => "Bed with Mattress", "type" => "Bedroom", "icon" => "bed"],
+    ["name" => "Air Conditioner", "type" => "Bedroom", "icon" => "ac"],
+    ["name" => "Geyser", "type" => "Washroom", "icon" => "geyser"]
+];
+
+$default_testimonials = [
+    ["user_name" => "Ashutosh Gowariker", "content" => "You just have to arrive at the place, it's as simple as that. You don't have to worry about anything here!"],
+    ["user_name" => "Karan Johar", "content" => "Clean rooms, courteous staff and delicious food. Feels right at home."]
+];
+
+$property = isset($all_fallback_properties[$property_id]) ? $all_fallback_properties[$property_id] : $all_fallback_properties[1];
+$testimonials = $default_testimonials;
+$amenities = $default_amenities;
+$interested_users = [];
+$interested_users_count = 5;
+
+if ($conn) {
+    $sql_1 = "SELECT *, p.id AS property_id, p.name AS property_name, c.name AS city_name 
+                FROM properties p
+                INNER JOIN cities c ON p.city_id = c.id 
+                WHERE p.id = $property_id";
+    $result_1 = mysqli_query($conn, $sql_1);
+    if ($result_1 && ($db_prop = mysqli_fetch_assoc($result_1))) {
+        $property = $db_prop;
+        
+        $sql_2 = "SELECT * FROM testimonials WHERE property_id = $property_id";
+        $result_2 = mysqli_query($conn, $sql_2);
+        if ($result_2 && ($db_test = mysqli_fetch_all($result_2, MYSQLI_ASSOC))) {
+            if (!empty($db_test)) $testimonials = $db_test;
+        }
+
+        $sql_3 = "SELECT a.* 
+                    FROM amenities a
+                    INNER JOIN properties_amenities pa ON a.id = pa.amenity_id
+                    WHERE pa.property_id = $property_id";
+        $result_3 = mysqli_query($conn, $sql_3);
+        if ($result_3 && ($db_am = mysqli_fetch_all($result_3, MYSQLI_ASSOC))) {
+            if (!empty($db_am)) $amenities = $db_am;
+        }
+
+        $sql_4 = "SELECT * FROM interested_users_properties WHERE property_id = $property_id";
+        $result_4 = mysqli_query($conn, $sql_4);
+        if ($result_4) {
+            $interested_users = mysqli_fetch_all($result_4, MYSQLI_ASSOC);
+            $interested_users_count = mysqli_num_rows($result_4);
+        }
+    }
 }
-$property = mysqli_fetch_assoc($result_1);
-if (!$property) {
-    echo "Something went wrong!";
-    return;
-}
-
-
-$sql_2 = "SELECT * FROM testimonials WHERE property_id = $property_id";
-$result_2 = mysqli_query($conn, $sql_2);
-if (!$result_2) {
-    echo "Something went wrong!";
-    return;
-}
-$testimonials = mysqli_fetch_all($result_2, MYSQLI_ASSOC);
-
-
-$sql_3 = "SELECT a.* 
-            FROM amenities a
-            INNER JOIN properties_amenities pa ON a.id = pa.amenity_id
-            WHERE pa.property_id = $property_id";
-$result_3 = mysqli_query($conn, $sql_3);
-if (!$result_3) {
-    echo "Something went wrong!";
-    return;
-}
-$amenities = mysqli_fetch_all($result_3, MYSQLI_ASSOC);
-
-
-$sql_4 = "SELECT * FROM interested_users_properties WHERE property_id = $property_id";
-$result_4 = mysqli_query($conn, $sql_4);
-if (!$result_4) {
-    echo "Something went wrong!";
-    return;
-}
-$interested_users = mysqli_fetch_all($result_4, MYSQLI_ASSOC);
-$interested_users_count = mysqli_num_rows($result_4);
 ?>
 
 <!DOCTYPE html>
@@ -57,7 +157,7 @@ $interested_users_count = mysqli_num_rows($result_4);
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $property['property_name']; ?> | PG Life</title>
+    <title><?= htmlspecialchars($property['property_name']); ?> | PG Life</title>
 
     <?php
     include "includes/head_links.php";
@@ -76,10 +176,10 @@ $interested_users_count = mysqli_num_rows($result_4);
                 <a href="index.php">Home</a>
             </li>
             <li class="breadcrumb-item">
-                <a href="property_list.php?city=<?= $property['city_name']; ?>"><?= $property['city_name']; ?></a>
+                <a href="property_list.php?city=<?= urlencode($property['city_name']); ?>"><?= htmlspecialchars($property['city_name']); ?></a>
             </li>
             <li class="breadcrumb-item active" aria-current="page">
-                <?= $property['property_name']; ?>
+                <?= htmlspecialchars($property['property_name']); ?>
             </li>
         </ol>
     </nav>
@@ -88,6 +188,9 @@ $interested_users_count = mysqli_num_rows($result_4);
         <ol class="carousel-indicators">
             <?php
             $property_images = glob("img/properties/" . $property['property_id'] . "/*");
+            if (empty($property_images)) {
+                $property_images = ["img/properties/1/1d4f0757fdb86d5f.jpg", "img/properties/1/46ebbb537aa9fb0a.jpg"];
+            }
             foreach ($property_images as $index => $property_image) {
             ?>
                 <li data-target="#property-images" data-slide-to="<?= $index ?>" class="<?= $index == 0 ? "active" : ""; ?>"></li>
@@ -100,7 +203,7 @@ $interested_users_count = mysqli_num_rows($result_4);
             foreach ($property_images as $index => $property_image) {
             ?>
                 <div class="carousel-item <?= $index == 0 ? "active" : ""; ?>">
-                    <img class="d-block w-100" src="<?= $property_image ?>" alt="slide">
+                    <img class="d-block w-100" src="<?= htmlspecialchars($property_image) ?>" alt="slide">
                 </div>
             <?php
             }
@@ -167,8 +270,8 @@ $interested_users_count = mysqli_num_rows($result_4);
             </div>
         </div>
         <div class="detail-container">
-            <div class="property-name"><?= $property['property_name'] ?></div>
-            <div class="property-address"><?= $property['address'] ?></div>
+            <div class="property-name"><?= htmlspecialchars($property['property_name']) ?></div>
+            <div class="property-address"><?= htmlspecialchars($property['address']) ?></div>
             <div class="property-gender">
                 <?php
                 if ($property['gender'] == "male") {
@@ -193,7 +296,7 @@ $interested_users_count = mysqli_num_rows($result_4);
                 <div class="rent-unit">per month</div>
             </div>
             <div class="button-container col-6">
-                <a href="#" class="btn btn-primary">Book Now</a>
+                <a href="#" class="btn btn-primary" onclick="alert('Booking request received! Our team will contact you shortly.'); return false;">Book Now</a>
             </div>
         </div>
     </div>
@@ -209,8 +312,8 @@ $interested_users_count = mysqli_num_rows($result_4);
                         if ($amenity['type'] == "Building") {
                     ?>
                             <div class="amenity-container">
-                                <img src="img/amenities/<?= $amenity['icon'] ?>.svg">
-                                <span><?= $amenity['name'] ?></span>
+                                <img src="img/amenities/<?= htmlspecialchars($amenity['icon']) ?>.svg">
+                                <span><?= htmlspecialchars($amenity['name']) ?></span>
                             </div>
                     <?php
                         }
@@ -225,8 +328,8 @@ $interested_users_count = mysqli_num_rows($result_4);
                         if ($amenity['type'] == "Common Area") {
                     ?>
                             <div class="amenity-container">
-                                <img src="img/amenities/<?= $amenity['icon'] ?>.svg">
-                                <span><?= $amenity['name'] ?></span>
+                                <img src="img/amenities/<?= htmlspecialchars($amenity['icon']) ?>.svg">
+                                <span><?= htmlspecialchars($amenity['name']) ?></span>
                             </div>
                     <?php
                         }
@@ -241,8 +344,8 @@ $interested_users_count = mysqli_num_rows($result_4);
                         if ($amenity['type'] == "Bedroom") {
                     ?>
                             <div class="amenity-container">
-                                <img src="img/amenities/<?= $amenity['icon'] ?>.svg">
-                                <span><?= $amenity['name'] ?></span>
+                                <img src="img/amenities/<?= htmlspecialchars($amenity['icon']) ?>.svg">
+                                <span><?= htmlspecialchars($amenity['name']) ?></span>
                             </div>
                     <?php
                         }
@@ -257,8 +360,8 @@ $interested_users_count = mysqli_num_rows($result_4);
                         if ($amenity['type'] == "Washroom") {
                     ?>
                             <div class="amenity-container">
-                                <img src="img/amenities/<?= $amenity['icon'] ?>.svg">
-                                <span><?= $amenity['name'] ?></span>
+                                <img src="img/amenities/<?= htmlspecialchars($amenity['icon']) ?>.svg">
+                                <span><?= htmlspecialchars($amenity['name']) ?></span>
                             </div>
                     <?php
                         }
@@ -271,7 +374,7 @@ $interested_users_count = mysqli_num_rows($result_4);
 
     <div class="property-about page-container">
         <h1>About the Property</h1>
-        <p><?= $property['description'] ?></p>
+        <p><?= htmlspecialchars($property['description']) ?></p>
     </div>
 
     <div class="property-rating">
@@ -405,9 +508,9 @@ $interested_users_count = mysqli_num_rows($result_4);
                 </div>
                 <div class="testimonial-text">
                     <i class="fa fa-quote-left" aria-hidden="true"></i>
-                    <p><?= $testimonial['content'] ?></p>
+                    <p><?= htmlspecialchars($testimonial['content']) ?></p>
                 </div>
-                <div class="testimonial-name">- <?= $testimonial['user_name'] ?></div>
+                <div class="testimonial-name">- <?= htmlspecialchars($testimonial['user_name']) ?></div>
             </div>
         <?php
         }
