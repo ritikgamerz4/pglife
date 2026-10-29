@@ -14,13 +14,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
 
 // Ensure session is started if not already
 if (session_status() === PHP_SESSION_NONE) {
-    // Configure session cookie for cross-origin if HTTPS
     if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
         ini_set('session.cookie_samesite', 'None');
         ini_set('session.cookie_secure', '1');
     }
     session_start();
 }
+
+// Disable default PHP 8.1+ exception throwing on mysqli_connect so we can handle errors gracefully
+mysqli_report(MYSQLI_REPORT_OFF);
 
 // Database Credentials from Environment Variables (compatible with Render, Aiven, Clever Cloud, Railway)
 $db_host = getenv('DB_HOST') ?: (getenv('MYSQLHOST') ?: '127.0.0.1');
@@ -42,19 +44,15 @@ if ($database_url) {
     }
 }
 
-$conn = @mysqli_connect($db_host, $db_user, $db_pass, $db_name, $db_port);
-
-if (!$conn) {
-    // Return friendly error response
-    if (!empty($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
-        header('Content-Type: application/json');
-        echo json_encode([
-            "success" => false,
-            "message" => "Database connection failed. Please check your DB credentials in environment variables."
-        ]);
-        exit();
-    } else {
-        die("Database connection failed: " . mysqli_connect_error());
+// Don't attempt connection to default placeholder hosts
+$conn = false;
+if ($db_host !== 'your_cloud_mysql_host' && $db_host !== 'your_mysql_host') {
+    try {
+        $conn = @mysqli_connect($db_host, $db_user, $db_pass, $db_name, $db_port);
+    } catch (Throwable $e) {
+        $conn = false;
     }
 }
+
+$db_connected = ($conn !== false);
 ?>

@@ -8,15 +8,15 @@ const PropertyCard = props => {
   total_rating = Math.round(total_rating * 10) / 10;
   total_rating = total_rating.toFixed(1);
 
-  const assetPrefix = base_path ? `${base_path}/` : process.env.PUBLIC_URL + '/';
+  const publicUrl = process.env.PUBLIC_URL || '';
 
   let gender_image;
   if (props.property.gender === "male") {
-    gender_image = <img src={`${assetPrefix}img/male.png`} alt="male" />;
+    gender_image = <img src={`${publicUrl}/img/male.png`} alt="male" />;
   } else if (props.property.gender === "female") {
-    gender_image = <img src={`${assetPrefix}img/female.png`} alt="female" />;
+    gender_image = <img src={`${publicUrl}/img/female.png`} alt="female" />;
   } else {
-    gender_image = <img src={`${assetPrefix}img/unisex.png`} alt="unisex" />;
+    gender_image = <img src={`${publicUrl}/img/unisex.png`} alt="unisex" />;
   }
 
   let rent = new Intl.NumberFormat().format(props.property.rent);
@@ -24,14 +24,21 @@ const PropertyCard = props => {
     ? `${base_path}/property_detail.php?property_id=${props.property.id}`
     : `property_detail.php?property_id=${props.property.id}`;
 
-  const imageSrc = props.property.image.startsWith('http')
+  const imageSrc = props.property.image && props.property.image.startsWith('http')
     ? props.property.image
-    : `${assetPrefix}${props.property.image}`;
+    : `${publicUrl}/${props.property.image || 'img/properties/1/1d4f0757fdb86d5f.jpg'}`;
 
   return (
     <div className={`property-card property-id-${props.property.id} row`}>
       <div className="image-container col-md-4">
-        <img src={imageSrc} alt="property" />
+        <img
+          src={imageSrc}
+          alt={props.property.name}
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = `${publicUrl}/img/properties/1/1d4f0757fdb86d5f.jpg`;
+          }}
+        />
       </div>
 
       <div className="content-container col-md-8">

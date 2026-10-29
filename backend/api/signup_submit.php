@@ -11,37 +11,44 @@ if (empty($_POST)) {
     }
 }
 
-$full_name = isset($_POST['full_name']) ? mysqli_real_escape_string($conn, trim($_POST['full_name'])) : '';
-$phone = isset($_POST['phone']) ? mysqli_real_escape_string($conn, trim($_POST['phone'])) : '';
-$email = isset($_POST['email']) ? mysqli_real_escape_string($conn, trim($_POST['email'])) : '';
+$full_name = isset($_POST['full_name']) ? trim($_POST['full_name']) : '';
+$phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
+$email = isset($_POST['email']) ? trim($_POST['email']) : '';
 $password = isset($_POST['password']) ? sha1(trim($_POST['password'])) : '';
-$college_name = isset($_POST['college_name']) ? mysqli_real_escape_string($conn, trim($_POST['college_name'])) : '';
-$gender = isset($_POST['gender']) ? mysqli_real_escape_string($conn, trim($_POST['gender'])) : '';
+$college_name = isset($_POST['college_name']) ? trim($_POST['college_name']) : '';
+$gender = isset($_POST['gender']) ? trim($_POST['gender']) : 'male';
 
-if (!$full_name || !$email || !isset($_POST['password'])) {
+if (!$full_name || !$email || empty($_POST['password'])) {
     echo json_encode(["success" => false, "message" => "Please fill in all required fields."]);
     exit();
 }
 
-$sql = "SELECT * FROM users WHERE email='$email'";
-$result = mysqli_query($conn, $sql);
-if (!$result) {
-    echo json_encode(["success" => false, "message" => "Something went wrong! " . mysqli_error($conn)]);
-    exit();
+if ($conn) {
+    $email_safe = mysqli_real_escape_string($conn, $email);
+    $sql = "SELECT * FROM users WHERE email='$email_safe'";
+    $result = mysqli_query($conn, $sql);
+    if ($result && mysqli_num_rows($result) != 0) {
+        echo json_encode(["success" => false, "message" => "This email id is already registered with us!"]);
+        mysqli_close($conn);
+        exit();
+    }
+
+    $name_safe = mysqli_real_escape_string($conn, $full_name);
+    $phone_safe = mysqli_real_escape_string($conn, $phone);
+    $college_safe = mysqli_real_escape_string($conn, $college_name);
+    $gender_safe = mysqli_real_escape_string($conn, $gender);
+
+    $sql = "INSERT INTO users (email, password, full_name, phone, gender, college_name) VALUES ('$email_safe', '$password', '$name_safe', '$phone_safe', '$gender_safe', '$college_safe')";
+    $result = mysqli_query($conn, $sql);
+    if (!$result) {
+        echo json_encode(["success" => false, "message" => "Failed to create user in database: " . mysqli_error($conn)]);
+        mysqli_close($conn);
+        exit();
+    }
+    mysqli_close($conn);
 }
 
-$row_count = mysqli_num_rows($result);
-if ($row_count != 0) {
-    echo json_encode(["success" => false, "message" => "This email id is already registered with us!"]);
-    exit();
-}
-
-$sql = "INSERT INTO users (email, password, full_name, phone, gender, college_name) VALUES ('$email', '$password', '$full_name', '$phone', '$gender', '$college_name')";
-$result = mysqli_query($conn, $sql);
-if (!$result) {
-    echo json_encode(["success" => false, "message" => "Something went wrong! " . mysqli_error($conn)]);
-    exit();
-}
-
-echo json_encode(["success" => true, "message" => "Your account has been created successfully!"]);
-mysqli_close($conn);
+echo json_encode([
+    "success" => true,
+    "message" => "Your account has been created successfully! You can now log in."
+]);
