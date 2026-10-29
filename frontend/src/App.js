@@ -7,13 +7,17 @@ import { base_path } from './utils.js';
 
 class App extends Component {
   state = {
+    currentView: "home", // "home" | "list" | "dashboard"
     properties: [],
     sort: "none",
     filter: {
       gender: "none"
     },
-    city_name: "Hyderabad",
+    city_name: "Mumbai",
+    searchInput: "",
     loading: false,
+    interestedPropertyIds: [1, 6], // default sample interested IDs
+
     // Auth State
     isLoggedIn: false,
     currentUser: null,
@@ -33,10 +37,120 @@ class App extends Component {
     signupLoading: false
   };
 
+  // Comprehensive city properties catalog for immediate display
+  allSampleProperties = [
+    {
+      id: 1,
+      city_id: 2,
+      cityName: "Mumbai",
+      name: "Navkar Paying Guest",
+      address: "44, Juhu Scheme, Juhu, Mumbai, Maharashtra 400058",
+      description: "Furnished room with attached washroom, daily housekeeping, 3-course homestyle meals, and 24/7 security near Juhu beach and metro station.",
+      gender: "male",
+      rent: 9500,
+      rating_clean: 4.2,
+      rating_food: 3.8,
+      rating_safety: 4.5,
+      image: "img/properties/1/1d4f0757fdb86d5f.jpg",
+      interested_users_count: 5
+    },
+    {
+      id: 2,
+      city_id: 2,
+      cityName: "Mumbai",
+      name: "Ganpati Paying Guest",
+      address: "Police Station, 115, Sher-e-Punjab Colony, Andheri East, Mumbai 400093",
+      description: "Spacious co-living PG with dedicated study desks, high-speed WiFi, gym access, and nutritious breakfast & dinner provided daily.",
+      gender: "female",
+      rent: 8500,
+      rating_clean: 4.5,
+      rating_food: 4.0,
+      rating_safety: 4.8,
+      image: "img/properties/2/1dcfc57947b5c712.jpg",
+      interested_users_count: 4
+    },
+    {
+      id: 3,
+      city_id: 1,
+      cityName: "Delhi",
+      name: "PG for Girls Shree Radhe",
+      address: "Plot no. 258/D4, Laxman Vihar, Phase 2, Delhi 110001",
+      description: "Safe, well-maintained girls PG with biometric entrance, air-conditioned rooms, full power backup, and hygienic home-cooked meals.",
+      gender: "female",
+      rent: 11000,
+      rating_clean: 4.7,
+      rating_food: 4.3,
+      rating_safety: 4.9,
+      image: "img/properties/1/eace7b9114fd6046.jpg",
+      interested_users_count: 6
+    },
+    {
+      id: 4,
+      city_id: 1,
+      cityName: "Delhi",
+      name: "Saxena Paying Guest",
+      address: "H.No. 122, Block B, Hauz Khas, New Delhi 110016",
+      description: "Premium student PG within walking distance of metro and markets. Includes high-speed internet, laundry, and round-the-clock water supply.",
+      gender: "male",
+      rent: 12500,
+      rating_clean: 4.0,
+      rating_food: 3.9,
+      rating_safety: 4.2,
+      image: "img/properties/1/46ebbb537aa9fb0a.jpg",
+      interested_users_count: 2
+    },
+    {
+      id: 5,
+      city_id: 3,
+      cityName: "Bengaluru",
+      name: "Youth Living Paying Guest",
+      address: "12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru 560038",
+      description: "Modern unisex co-living hub located in prime Indiranagar with high-speed internet, gaming zone, cafe lounge, and housekeeping.",
+      gender: "unisex",
+      rent: 14000,
+      rating_clean: 4.6,
+      rating_food: 4.4,
+      rating_safety: 4.6,
+      image: "img/properties/1/46ebbb537aa9fb0a.jpg",
+      interested_users_count: 7
+    },
+    {
+      id: 6,
+      city_id: 4,
+      cityName: "Hyderabad",
+      name: "CyberCity Luxury PG",
+      address: "Hitec City Main Road, Madhapur, Hyderabad 500081",
+      description: "Executive PG accommodation for working professionals and students near tech parks. Equipped with AC, TV, WiFi, and meal plan.",
+      gender: "unisex",
+      rent: 10500,
+      rating_clean: 4.3,
+      rating_food: 4.1,
+      rating_safety: 4.5,
+      image: "img/properties/1/1d4f0757fdb86d5f.jpg",
+      interested_users_count: 4
+    },
+    {
+      id: 7,
+      city_id: 4,
+      cityName: "Hyderabad",
+      name: "Gachibowli Heights PG",
+      address: "Plot 45, Telecom Nagar, Gachibowli, Hyderabad 500032",
+      description: "Modern student accommodation with high-speed internet, food facility, and 24/7 security.",
+      gender: "male",
+      rent: 9000,
+      rating_clean: 4.4,
+      rating_food: 4.0,
+      rating_safety: 4.6,
+      image: "img/properties/2/1dcfc57947b5c712.jpg",
+      interested_users_count: 3
+    }
+  ];
+
   componentDidMount() {
     const search = window.location.search;
     const params = new URLSearchParams(search);
-    const city = params.get('city') || "Hyderabad";
+    const cityParam = params.get('city');
+    const viewParam = params.get('view');
 
     // Load persisted user session from localStorage
     const savedUser = localStorage.getItem('pglife_user');
@@ -49,195 +163,140 @@ class App extends Component {
       }
     }
 
-    this.setState({ city_name: city }, () => {
-      this.fetchProperties(city);
-    });
+    // Load persisted interested properties
+    const savedInterested = localStorage.getItem('pglife_interested');
+    if (savedInterested) {
+      try {
+        this.setState({ interestedPropertyIds: JSON.parse(savedInterested) });
+      } catch (e) {}
+    }
+
+    if (cityParam) {
+      this.setState({ currentView: "list", city_name: cityParam }, () => {
+        this.fetchProperties(cityParam);
+      });
+    } else if (viewParam === "dashboard") {
+      this.setState({ currentView: "dashboard" });
+    } else {
+      this.setState({ currentView: "home" });
+    }
   }
 
   fetchProperties = (cityName) => {
     this.setState({ loading: true });
     fetch(`${base_path}/api/get_properties_by_city.php?city=${encodeURIComponent(cityName)}`)
       .then(response => {
-        if (!response.ok) {
-          throw new Error('Network error');
-        }
+        if (!response.ok) throw new Error('Network error');
         return response.json();
       })
       .then(responseData => {
-        const properties = Array.isArray(responseData) ? responseData : [];
+        const properties = Array.isArray(responseData) && responseData.length > 0
+          ? responseData
+          : this.getFallbackCityProperties(cityName);
+
         this.setState({
-          properties: properties,
+          properties: this.syncInterestedState(properties),
           loading: false
         });
       })
-      .catch(error => {
-        console.log('Error fetching properties from backend:', error);
-        // Fallback properties for seamless demo if backend is cold/unconnected
-        const fallbacks = {
-          hyderabad: [
-            {
-              id: 6,
-              city_id: 4,
-              name: "CyberCity Luxury PG",
-              address: "Hitec City Main Road, Madhapur, Hyderabad 500081",
-              description: "Executive PG accommodation for working professionals and students near tech parks.",
-              gender: "unisex",
-              rent: 10500,
-              rating_clean: 4.3,
-              rating_food: 4.1,
-              rating_safety: 4.5,
-              image: "img/properties/1/1d4f0757fdb86d5f.jpg",
-              interested_users_count: 4,
-              is_interested: false
-            },
-            {
-              id: 7,
-              city_id: 4,
-              name: "Gachibowli Heights PG",
-              address: "Plot 45, Telecom Nagar, Gachibowli, Hyderabad 500032",
-              description: "Modern student accommodation with high-speed internet, food facility, and 24/7 security.",
-              gender: "male",
-              rent: 9000,
-              rating_clean: 4.4,
-              rating_food: 4.0,
-              rating_safety: 4.6,
-              image: "img/properties/2/1dcfc57947b5c712.jpg",
-              interested_users_count: 3,
-              is_interested: false
-            }
-          ],
-          delhi: [
-            {
-              id: 3,
-              city_id: 1,
-              name: "PG for Girls Shree Radhe",
-              address: "Plot no. 258/D4, Laxman Vihar, Phase 2, Delhi 110001",
-              description: "Safe, well-maintained girls PG with biometric entrance, air-conditioned rooms, full power backup.",
-              gender: "female",
-              rent: 11000,
-              rating_clean: 4.7,
-              rating_food: 4.3,
-              rating_safety: 4.9,
-              image: "img/properties/1/eace7b9114fd6046.jpg",
-              interested_users_count: 6,
-              is_interested: false
-            },
-            {
-              id: 4,
-              city_id: 1,
-              name: "Saxena Paying Guest",
-              address: "H.No. 122, Block B, Hauz Khas, New Delhi 110016",
-              description: "Premium student PG within walking distance of metro and markets.",
-              gender: "male",
-              rent: 12500,
-              rating_clean: 4.0,
-              rating_food: 3.9,
-              rating_safety: 4.2,
-              image: "img/properties/1/46ebbb537aa9fb0a.jpg",
-              interested_users_count: 2,
-              is_interested: false
-            }
-          ],
-          mumbai: [
-            {
-              id: 1,
-              city_id: 2,
-              name: "Navkar Paying Guest",
-              address: "44, Juhu Scheme, Juhu, Mumbai, Maharashtra 400058",
-              description: "Furnished room with attached washroom, daily housekeeping, 3-course homestyle meals.",
-              gender: "male",
-              rent: 9500,
-              rating_clean: 4.2,
-              rating_food: 3.8,
-              rating_safety: 4.5,
-              image: "img/properties/1/1d4f0757fdb86d5f.jpg",
-              interested_users_count: 5,
-              is_interested: false
-            },
-            {
-              id: 2,
-              city_id: 2,
-              name: "Ganpati Paying Guest",
-              address: "Police Station, 115, Sher-e-Punjab Colony, Andheri East, Mumbai 400093",
-              description: "Spacious co-living PG with dedicated study desks, high-speed WiFi, gym access.",
-              gender: "female",
-              rent: 8500,
-              rating_clean: 4.5,
-              rating_food: 4.0,
-              rating_safety: 4.8,
-              image: "img/properties/2/1dcfc57947b5c712.jpg",
-              interested_users_count: 4,
-              is_interested: false
-            }
-          ],
-          bengaluru: [
-            {
-              id: 5,
-              city_id: 3,
-              name: "Youth Living Paying Guest",
-              address: "12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru 560038",
-              description: "Modern unisex co-living hub located in prime Indiranagar with high-speed internet.",
-              gender: "unisex",
-              rent: 14000,
-              rating_clean: 4.6,
-              rating_food: 4.4,
-              rating_safety: 4.6,
-              image: "img/properties/1/46ebbb537aa9fb0a.jpg",
-              interested_users_count: 7,
-              is_interested: false
-            }
-          ]
-        };
-        const key = cityName.toLowerCase();
+      .catch(() => {
         this.setState({
-          properties: fallbacks[key] || [],
+          properties: this.syncInterestedState(this.getFallbackCityProperties(cityName)),
           loading: false
         });
       });
   };
 
+  getFallbackCityProperties = (cityName) => {
+    const key = cityName.toLowerCase();
+    return this.allSampleProperties.filter(p => p.cityName.toLowerCase() === key);
+  };
+
+  syncInterestedState = (propertiesList) => {
+    return propertiesList.map(p => ({
+      ...p,
+      is_interested: this.state.interestedPropertyIds.includes(p.id)
+    }));
+  };
+
+  goToHome = () => {
+    this.setState({ currentView: "home" });
+    const url = new URL(window.location);
+    url.searchParams.delete('city');
+    url.searchParams.delete('view');
+    window.history.pushState({}, '', url);
+  };
+
+  goToDashboard = () => {
+    if (!this.state.isLoggedIn) {
+      this.openLoginModal();
+      return;
+    }
+    this.setState({ currentView: "dashboard" });
+    const url = new URL(window.location);
+    url.searchParams.set('view', 'dashboard');
+    url.searchParams.delete('city');
+    window.history.pushState({}, '', url);
+  };
+
   changeCity = (newCity) => {
-    this.setState({ city_name: newCity });
+    this.setState({ city_name: newCity, currentView: "list" });
     const url = new URL(window.location);
     url.searchParams.set('city', newCity);
+    url.searchParams.delete('view');
     window.history.pushState({}, '', url);
     this.fetchProperties(newCity);
   };
 
-  toggleInterested = property_id => {
+  handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const query = this.state.searchInput.trim();
+    if (!query) return;
+
+    const matchedCity = ["Delhi", "Mumbai", "Bengaluru", "Hyderabad"].find(
+      c => c.toLowerCase() === query.toLowerCase()
+    );
+
+    this.changeCity(matchedCity || query);
+    this.setState({ searchInput: "" });
+  };
+
+  toggleInterested = (property_id) => {
     if (!this.state.isLoggedIn) {
       this.openLoginModal();
       return;
     }
 
+    let newInterestedIds = [...this.state.interestedPropertyIds];
+    if (newInterestedIds.includes(property_id)) {
+      newInterestedIds = newInterestedIds.filter(id => id !== property_id);
+    } else {
+      newInterestedIds.push(property_id);
+    }
+
+    localStorage.setItem('pglife_interested', JSON.stringify(newInterestedIds));
+    this.setState({ interestedPropertyIds: newInterestedIds }, () => {
+      // Update in current properties state
+      const updated = this.state.properties.map(property => {
+        if (property.id === property_id) {
+          const isNowInterested = newInterestedIds.includes(property_id);
+          return {
+            ...property,
+            is_interested: isNowInterested,
+            interested_users_count: isNowInterested
+              ? property.interested_users_count + 1
+              : Math.max(0, property.interested_users_count - 1)
+          };
+        }
+        return property;
+      });
+      this.setState({ properties: updated });
+    });
+
+    // Fire network request in background
     fetch(`${base_path}/api/toggle_interested.php?property_id=${property_id}`, {
       credentials: 'include'
-    })
-      .then(response => response.json())
-      .then(responseData => {
-        this.updateInterested(property_id);
-      })
-      .catch(() => {
-        this.updateInterested(property_id);
-      });
-  };
-
-  updateInterested = property_id => {
-    let updated_properties = [...this.state.properties];
-    updated_properties.forEach((property) => {
-      if (property.id === property_id) {
-        property.is_interested = !property.is_interested;
-        if (property.is_interested) {
-          property.interested_users_count++;
-        } else {
-          property.interested_users_count--;
-        }
-      }
-    });
-
-    this.setState({
-      properties: updated_properties
-    });
+    }).catch(() => {});
   };
 
   updateSort = sort => {
@@ -289,7 +348,9 @@ class App extends Component {
           const user = data.user || {
             id: 1,
             full_name: payload.email.split('@')[0],
-            email: payload.email
+            email: payload.email,
+            phone: "9876543210",
+            college_name: "IIT Delhi"
           };
           localStorage.setItem('pglife_user', JSON.stringify(user));
           this.setState({
@@ -304,13 +365,13 @@ class App extends Component {
           this.setState({ loginError: data.message || "Invalid email or password." });
         }
       })
-      .catch(err => {
-        console.error("Login fetch error:", err);
-        // Fallback demo login
+      .catch(() => {
         const user = {
           id: 1,
-          full_name: payload.email.split('@')[0] || "Demo User",
-          email: payload.email
+          full_name: payload.email.split('@')[0] || "Test User",
+          email: payload.email,
+          phone: "9876543210",
+          college_name: "IIT Delhi"
         };
         localStorage.setItem('pglife_user', JSON.stringify(user));
         this.setState({
@@ -355,8 +416,7 @@ class App extends Component {
           this.setState({ signupError: data.message || "Failed to create account." });
         }
       })
-      .catch(err => {
-        console.error("Signup fetch error:", err);
+      .catch(() => {
         alert("Account registered successfully! Please log in.");
         this.setState({
           showSignupModal: false,
@@ -369,14 +429,16 @@ class App extends Component {
 
   logout = () => {
     localStorage.removeItem('pglife_user');
-    this.setState({ isLoggedIn: false, currentUser: null });
+    this.setState({ isLoggedIn: false, currentUser: null, currentView: "home" });
     alert("Logged out successfully.");
   };
 
   render() {
-    let properties = [...this.state.properties];
+    const publicUrl = process.env.PUBLIC_URL || '';
+    const cities = ["Delhi", "Mumbai", "Bengaluru", "Hyderabad"];
 
-    // Sorting
+    // Compute sorted & filtered properties for Property List View
+    let properties = [...this.state.properties];
     if (this.state.sort !== "none") {
       if (this.state.sort === "desc") {
         properties.sort((a, b) => b.rent - a.rent);
@@ -384,12 +446,8 @@ class App extends Component {
         properties.sort((a, b) => a.rent - b.rent);
       }
     }
-
-    // Filter
     if (this.state.filter.gender !== "none") {
-      properties = properties.filter(property =>
-        property.gender === this.state.filter.gender
-      );
+      properties = properties.filter(p => p.gender === this.state.filter.gender);
     }
 
     let property_cards;
@@ -414,43 +472,60 @@ class App extends Component {
       property_cards = <NoProperty />;
     }
 
-    const cities = ["Delhi", "Mumbai", "Bengaluru", "Hyderabad"];
-    const publicUrl = process.env.PUBLIC_URL || '';
+    // Compute Interested Properties for Dashboard View
+    const interestedProperties = this.allSampleProperties
+      .filter(p => this.state.interestedPropertyIds.includes(p.id))
+      .map(p => ({
+        ...p,
+        is_interested: true
+      }));
 
     return (
-      <>
-        {/* Header Navigation */}
+      <div className="d-flex flex-column min-vh-100">
+        {/* ================= HEADER / NAVBAR ================= */}
         <div className="header sticky-top">
-          <nav className="navbar navbar-expand-md navbar-light bg-white shadow-sm py-2">
-            <a className="navbar-brand d-flex align-items-center" href="/">
-              <img src={`${publicUrl}/img/logo.png`} alt="PG Life Logo" style={{ height: "38px" }} />
+          <nav className="navbar navbar-expand-md navbar-light bg-white shadow-sm py-2 px-3">
+            <a
+              className="navbar-brand d-flex align-items-center"
+              href="#home"
+              onClick={(e) => { e.preventDefault(); this.goToHome(); }}
+            >
+              <img src={`${publicUrl}/img/logo.png`} alt="PG Life Logo" style={{ height: "40px" }} />
             </a>
 
-            {/* City Selector */}
-            <div className="mx-auto d-none d-md-flex align-items-center">
-              <span className="mr-2 font-weight-bold text-secondary small">Select City:</span>
-              <div className="btn-group" role="group">
-                {cities.map(city => (
-                  <button
-                    key={city}
-                    type="button"
-                    onClick={() => this.changeCity(city)}
-                    className={`btn btn-sm ${this.state.city_name.toLowerCase() === city.toLowerCase() ? 'btn-primary font-weight-bold' : 'btn-outline-secondary'}`}
-                  >
-                    {city}
-                  </button>
-                ))}
+            {/* City Quick Switcher (when on list view) */}
+            {this.state.currentView === "list" && (
+              <div className="mx-auto d-none d-md-flex align-items-center">
+                <span className="mr-2 font-weight-bold text-secondary small">City:</span>
+                <div className="btn-group" role="group">
+                  {cities.map(city => (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => this.changeCity(city)}
+                      className={`btn btn-sm ${this.state.city_name.toLowerCase() === city.toLowerCase() ? 'btn-primary font-weight-bold' : 'btn-outline-secondary'}`}
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Auth Buttons */}
+            {/* Auth Nav Items */}
             <div className="navbar-nav ml-auto d-flex flex-row align-items-center">
               {this.state.isLoggedIn ? (
                 <>
-                  <span className="mr-3 text-dark font-weight-bold small">
-                    <i className="fas fa-user-circle mr-1 text-primary"></i>
+                  <div className="nav-name text-dark mr-3 small">
                     Hi, {this.state.currentUser ? this.state.currentUser.full_name : 'User'}
-                  </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={this.goToDashboard}
+                    className={`btn btn-sm mr-2 font-weight-bold ${this.state.currentView === 'dashboard' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  >
+                    <i className="fas fa-user mr-1"></i>Dashboard
+                  </button>
                   <button
                     type="button"
                     onClick={this.logout}
@@ -464,14 +539,14 @@ class App extends Component {
                   <button
                     type="button"
                     onClick={this.openSignupModal}
-                    className="btn btn-outline-secondary btn-sm mr-2 font-weight-bold"
+                    className="btn btn-link text-dark font-weight-bold mr-2 text-decoration-none"
                   >
                     <i className="fas fa-user mr-1"></i>Signup
                   </button>
                   <button
                     type="button"
                     onClick={this.openLoginModal}
-                    className="btn btn-primary btn-sm font-weight-bold"
+                    className="btn btn-link text-dark font-weight-bold text-decoration-none"
                   >
                     <i className="fas fa-sign-in-alt mr-1"></i>Login
                   </button>
@@ -479,52 +554,215 @@ class App extends Component {
               )}
             </div>
           </nav>
+        </div>
 
-          {/* Mobile City Selector Bar */}
-          <div className="d-flex d-md-none justify-content-center bg-light py-2 border-bottom">
-            <div className="btn-group btn-group-sm" role="group">
-              {cities.map(city => (
-                <button
-                  key={city}
-                  type="button"
-                  onClick={() => this.changeCity(city)}
-                  className={`btn btn-sm ${this.state.city_name.toLowerCase() === city.toLowerCase() ? 'btn-primary font-weight-bold' : 'btn-outline-secondary'}`}
-                >
-                  {city}
-                </button>
-              ))}
+        {/* ================= PAGE CONTENT ================= */}
+        <div className="flex-grow-1">
+          {/* 1. HOME VIEW */}
+          {this.state.currentView === "home" && (
+            <div>
+              <div className="banner-container">
+                <h2 className="white pb-3 font-weight-bold">Happiness per Square Foot</h2>
+
+                <form id="search-form" onSubmit={this.handleSearchSubmit}>
+                  <div className="input-group city-search">
+                    <input
+                      type="text"
+                      className="form-control input-city"
+                      placeholder="Enter your city to search for PGs"
+                      value={this.state.searchInput}
+                      onChange={(e) => this.setState({ searchInput: e.target.value })}
+                    />
+                    <div className="input-group-append">
+                      <button type="submit" className="btn btn-secondary">
+                        <i className="fa fa-search"></i>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              <div className="page-container text-center">
+                <h1 className="city-heading mb-4 font-weight-bold">Major Cities</h1>
+                <div className="row justify-content-center">
+                  <div className="city-card-container col-6 col-md-3">
+                    <a href="#delhi" onClick={(e) => { e.preventDefault(); this.changeCity("Delhi"); }}>
+                      <div className="city-card rounded-circle">
+                        <img src={`${publicUrl}/img/delhi.png`} className="city-img" alt="Delhi" />
+                      </div>
+                    </a>
+                  </div>
+
+                  <div className="city-card-container col-6 col-md-3">
+                    <a href="#mumbai" onClick={(e) => { e.preventDefault(); this.changeCity("Mumbai"); }}>
+                      <div className="city-card rounded-circle">
+                        <img src={`${publicUrl}/img/mumbai.png`} className="city-img" alt="Mumbai" />
+                      </div>
+                    </a>
+                  </div>
+
+                  <div className="city-card-container col-6 col-md-3">
+                    <a href="#bengaluru" onClick={(e) => { e.preventDefault(); this.changeCity("Bengaluru"); }}>
+                      <div className="city-card rounded-circle">
+                        <img src={`${publicUrl}/img/bangalore.png`} className="city-img" alt="Bengaluru" />
+                      </div>
+                    </a>
+                  </div>
+
+                  <div className="city-card-container col-6 col-md-3">
+                    <a href="#hyderabad" onClick={(e) => { e.preventDefault(); this.changeCity("Hyderabad"); }}>
+                      <div className="city-card rounded-circle">
+                        <img src={`${publicUrl}/img/hyderabad.png`} className="city-img" alt="Hyderabad" />
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* 2. PROPERTY LIST VIEW */}
+          {this.state.currentView === "list" && (
+            <div>
+              <nav aria-label="breadcrumb">
+                <ol className="breadcrumb py-2 px-4 mb-3">
+                  <li className="breadcrumb-item">
+                    <a href="#home" onClick={(e) => { e.preventDefault(); this.goToHome(); }}>Home</a>
+                  </li>
+                  <li className="breadcrumb-item active" aria-current="page">
+                    {this.state.city_name}
+                  </li>
+                </ol>
+              </nav>
+
+              <div className="page-container">
+                <FilterBar
+                  currentSort={this.state.sort}
+                  updateSort={this.updateSort}
+                  currentFilter={this.state.filter}
+                />
+
+                {property_cards}
+              </div>
+
+              <FilterModal
+                currentFilter={this.state.filter}
+                updateFilter={this.updateFilter}
+              />
+            </div>
+          )}
+
+          {/* 3. DASHBOARD VIEW */}
+          {this.state.currentView === "dashboard" && (
+            <div>
+              <nav aria-label="breadcrumb">
+                <ol className="breadcrumb py-2 px-4 mb-3">
+                  <li className="breadcrumb-item">
+                    <a href="#home" onClick={(e) => { e.preventDefault(); this.goToHome(); }}>Home</a>
+                  </li>
+                  <li className="breadcrumb-item active" aria-current="page">
+                    Dashboard
+                  </li>
+                </ol>
+              </nav>
+
+              <div className="my-profile page-container">
+                <h1 className="mb-4">My Profile</h1>
+                <div className="row align-items-center">
+                  <div className="col-md-3 profile-img-container text-center">
+                    <i className="fas fa-user profile-img"></i>
+                  </div>
+                  <div className="col-md-9">
+                    <div className="row no-gutters justify-content-between align-items-end">
+                      <div className="profile">
+                        <div className="name font-weight-bold h4 mb-2">
+                          {this.state.currentUser ? this.state.currentUser.full_name : 'Test User'}
+                        </div>
+                        <div className="email text-secondary mb-1">
+                          <i className="fas fa-envelope mr-2"></i>
+                          {this.state.currentUser ? this.state.currentUser.email : 'test@pglife.com'}
+                        </div>
+                        <div className="phone text-secondary mb-1">
+                          <i className="fas fa-phone mr-2"></i>
+                          {this.state.currentUser && this.state.currentUser.phone ? this.state.currentUser.phone : '9876543210'}
+                        </div>
+                        <div className="college text-secondary mb-1">
+                          <i className="fas fa-university mr-2"></i>
+                          {this.state.currentUser && this.state.currentUser.college_name ? this.state.currentUser.college_name : 'IIT Delhi'}
+                        </div>
+                      </div>
+                      <div className="edit mt-3 mt-md-0">
+                        <div
+                          className="edit-profile text-primary small font-weight-bold"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => alert("Profile information is up to date.")}
+                        >
+                          Edit Profile
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="my-interested-properties py-4">
+                <div className="page-container">
+                  <h1 className="mb-4">My Interested Properties</h1>
+                  {interestedProperties.length > 0 ? (
+                    interestedProperties.map(property => (
+                      <PropertyCard
+                        key={property.id}
+                        property={property}
+                        toggleInterested={() => this.toggleInterested(property.id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="alert alert-info py-4 text-center">
+                      <p className="mb-2 font-weight-bold">You haven't marked any properties as interested yet.</p>
+                      <button
+                        onClick={this.goToHome}
+                        className="btn btn-primary btn-sm mt-2"
+                      >
+                        Explore PGs in Major Cities
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ================= FOOTER ================= */}
+        <div className="footer mt-auto">
+          <div className="page-container footer-container">
+            <div className="footer-cities">
+              <div className="footer-city">
+                <a href="#delhi" onClick={(e) => { e.preventDefault(); this.changeCity("Delhi"); }}>
+                  PG in Delhi
+                </a>
+              </div>
+              <div className="footer-city">
+                <a href="#mumbai" onClick={(e) => { e.preventDefault(); this.changeCity("Mumbai"); }}>
+                  PG in Mumbai
+                </a>
+              </div>
+              <div className="footer-city">
+                <a href="#bengaluru" onClick={(e) => { e.preventDefault(); this.changeCity("Bengaluru"); }}>
+                  PG in Bangalore
+                </a>
+              </div>
+              <div className="footer-city">
+                <a href="#hyderabad" onClick={(e) => { e.preventDefault(); this.changeCity("Hyderabad"); }}>
+                  PG in Hyderabad
+                </a>
+              </div>
+            </div>
+            <div className="footer-copyright">© 2026 Copyright PG Life </div>
           </div>
         </div>
 
-        {/* Breadcrumb Navigation */}
-        <nav aria-label="breadcrumb">
-          <ol className="breadcrumb py-2 px-4 mb-3">
-            <li className="breadcrumb-item">
-              <a href="/">Home</a>
-            </li>
-            <li className="breadcrumb-item active" aria-current="page">
-              {this.state.city_name}
-            </li>
-          </ol>
-        </nav>
-
-        <div className="page-container">
-          <FilterBar
-            currentSort={this.state.sort}
-            updateSort={this.updateSort}
-            currentFilter={this.state.filter}
-          />
-
-          {property_cards}
-        </div>
-
-        <FilterModal
-          currentFilter={this.state.filter}
-          updateFilter={this.updateFilter}
-        />
-
-        {/* --- LOGIN MODAL --- */}
+        {/* ================= LOGIN MODAL ================= */}
         {this.state.showLoginModal && (
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-dialog-centered" role="document">
@@ -597,7 +835,7 @@ class App extends Component {
           </div>
         )}
 
-        {/* --- SIGNUP MODAL --- */}
+        {/* ================= SIGNUP MODAL ================= */}
         {this.state.showSignupModal && (
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
             <div className="modal-dialog modal-dialog-centered" role="document">
@@ -717,7 +955,7 @@ class App extends Component {
             </div>
           </div>
         )}
-      </>
+      </div>
     );
   }
 }
