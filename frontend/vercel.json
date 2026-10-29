@@ -1,5 +1,6 @@
 {
   "framework": "create-react-app",
+  "buildCommand": "CI=false NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
   "rewrites": [
     {
       "source": "/(.*)",
