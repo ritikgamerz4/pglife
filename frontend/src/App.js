@@ -811,7 +811,6 @@ class App extends Component {
                           onChange={(e) => this.setState({ loginPassword: e.target.value })}
                         />
                       </div>
-                      <small className="form-text text-muted">Test login: <code>test@pglife.com</code> / <code>password123</code></small>
                     </div>
                     <button
                       type="submit"
